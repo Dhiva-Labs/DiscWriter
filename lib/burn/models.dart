@@ -18,17 +18,11 @@ class Drive {
   /// found by the sysfs fallback or added by hand.
   final String permissions;
 
-  const Drive({
-    required this.address,
-    this.vendor = '',
-    this.model = '',
-    this.permissions = '',
-  });
+  const Drive({required this.address, this.vendor = '', this.model = '', this.permissions = ''});
 
   /// A file used as a drive. xorriso treats it like overwriteable media, which
   /// makes it the safe target for simulations and tests.
-  factory Drive.imageFile(String path) =>
-      Drive(address: 'stdio:$path', vendor: 'Image file', model: path);
+  factory Drive.imageFile(String path) => Drive(address: 'stdio:$path', vendor: 'Image file', model: path);
 
   bool get isImageFile => address.startsWith('stdio:');
 
@@ -124,10 +118,10 @@ class MediaInfo {
     final state = blank
         ? 'blank'
         : appendable
-            ? 'appendable, $sessions session${sessions == 1 ? '' : 's'}'
-            : closed
-                ? 'closed'
-                : 'written';
+        ? 'appendable, $sessions session${sessions == 1 ? '' : 's'}'
+        : closed
+        ? 'closed'
+        : 'written';
     return '$displayName · $state';
   }
 }

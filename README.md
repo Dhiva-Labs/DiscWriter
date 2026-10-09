@@ -44,6 +44,9 @@ makes a file behave like a blank rewritable disc. Every burn, append, verify
 and erase works on it exactly as on real media. Use it to rehearse a burn,
 or to develop without hardware.
 
+**Light and dark themes.** It follows the desktop by default, and the toggle
+in the sidebar overrides that.
+
 **Safe cancelling.** You can stop at any point. While the drive is writing,
 the app warns first that stopping usually ruins a write-once disc.
 

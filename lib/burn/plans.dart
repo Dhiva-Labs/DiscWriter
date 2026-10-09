@@ -29,8 +29,10 @@ List<JobStep> burnProjectPlan(
       final blocks = parseImageSize(r.lines);
       final free = media.writableBlocks;
       if (blocks != null && free != null && blocks > free) {
-        throw JobFailure('The data needs ${formatBlocks(blocks)} but the disc '
-            'has ${formatBlocks(free)} free.');
+        throw JobFailure(
+          'The data needs ${formatBlocks(blocks)} but the disc '
+          'has ${formatBlocks(free)} free.',
+        );
       }
       return null;
     }),
@@ -48,26 +50,25 @@ List<JobStep> burnProjectPlan(
         noteFrom: md5Note,
       ),
     if (opts.simulate)
-      DartStep('Done', JobPhase.finishing, (_, _) async =>
-          'Simulation finished — nothing was written'),
+      DartStep('Done', JobPhase.finishing, (_, _) async => 'Simulation finished — nothing was written'),
   ];
 }
 
 /// Builds an ISO file from the project.
 List<JobStep> buildIsoPlan(DiscProject project, String isoPath) => [
-      DartStep('Preparing', JobPhase.preparing, (report, cancelled) async {
-        // -as mkisofs on an existing file would treat it as media with a
-        // session on it; the save dialog already confirmed the overwrite.
-        final f = File(isoPath);
-        if (await f.exists()) await f.delete();
-        return null;
-      }),
-      XorrisoStep('Creating image', JobPhase.writing, buildIsoArgs(project, isoPath)),
-      DartStep('Done', JobPhase.finishing, (_, _) async {
-        final size = await File(isoPath).length();
-        return 'Saved ${formatBytes(size)} image';
-      }),
-    ];
+  DartStep('Preparing', JobPhase.preparing, (report, cancelled) async {
+    // -as mkisofs on an existing file would treat it as media with a
+    // session on it; the save dialog already confirmed the overwrite.
+    final f = File(isoPath);
+    if (await f.exists()) await f.delete();
+    return null;
+  }),
+  XorrisoStep('Creating image', JobPhase.writing, buildIsoArgs(project, isoPath)),
+  DartStep('Done', JobPhase.finishing, (_, _) async {
+    final size = await File(isoPath).length();
+    return 'Saved ${formatBytes(size)} image';
+  }),
+];
 
 /// Burns an image file, then compares the disc against it byte for byte.
 List<JobStep> burnImagePlan(
@@ -83,8 +84,10 @@ List<JobStep> burnImagePlan(
       final bytes = await File(imagePath).length();
       final free = media.writableBlocks;
       if (free != null && bytes > free * sectorSize) {
-        throw JobFailure('The image is ${formatBytes(bytes)} but the disc has '
-            '${formatBlocks(free)} free.');
+        throw JobFailure(
+          'The image is ${formatBytes(bytes)} but the disc has '
+          '${formatBlocks(free)} free.',
+        );
       }
       return null;
     }),
@@ -98,24 +101,21 @@ List<JobStep> burnImagePlan(
         final device = drive.isImageFile ? drive.address.substring(6) : drive.address;
         return compareImageWithDevice(imagePath, device, report, cancelled);
       }),
-    if (verify && opts.eject)
-      XorrisoStep('Ejecting', JobPhase.finishing, ejectArgs(drive)),
+    if (verify && opts.eject) XorrisoStep('Ejecting', JobPhase.finishing, ejectArgs(drive)),
     if (opts.simulate)
-      DartStep('Done', JobPhase.finishing, (_, _) async =>
-          'Simulation finished — nothing was written'),
+      DartStep('Done', JobPhase.finishing, (_, _) async => 'Simulation finished — nothing was written'),
   ];
 }
 
 List<JobStep> blankPlan(Drive drive, BlankMode mode, {bool simulate = false}) => [
-      XorrisoStep(
-        mode == BlankMode.fast ? 'Quick erase' : 'Full erase',
-        JobPhase.blanking,
-        blankArgs(drive, mode, simulate: simulate),
-        noteFrom: (_) => simulate
-            ? 'Simulation finished — the disc was not erased'
-            : 'The disc is blank and ready to use',
-      ),
-    ];
+  XorrisoStep(
+    mode == BlankMode.fast ? 'Quick erase' : 'Full erase',
+    JobPhase.blanking,
+    blankArgs(drive, mode, simulate: simulate),
+    noteFrom: (_) =>
+        simulate ? 'Simulation finished — the disc was not erased' : 'The disc is blank and ready to use',
+  ),
+];
 
 String formatBytes(int bytes) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];

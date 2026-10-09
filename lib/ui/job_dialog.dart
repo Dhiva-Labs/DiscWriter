@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../burn/jobs.dart';
 import '../burn/models.dart';
 import '../state/providers.dart';
+import 'disc_gauge.dart';
+import 'theme.dart';
 
 /// Starts a job and shows its progress dialog until the user closes it.
 Future<JobState?> runJobWithDialog(
@@ -41,6 +43,10 @@ class _JobDialogState extends ConsumerState<JobDialog> {
   var _showLog = false;
   final _logScroll = ScrollController();
 
+  /// Fraction of the disc drawing that is "written", kept monotonic across
+  /// steps so the gauge doesn't empty out when verification starts.
+  double _shownProgress = 0;
+
   @override
   void dispose() {
     _logScroll.dispose();
@@ -76,6 +82,7 @@ class _JobDialogState extends ConsumerState<JobDialog> {
     if (job == null) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final colors = DiscColors.of(context);
 
     if (_showLog) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -83,93 +90,152 @@ class _JobDialogState extends ConsumerState<JobDialog> {
       });
     }
 
-    final (icon, color, headline) = switch (job.status) {
-      JobStatus.running => (null, scheme.primary, job.stepLabel),
-      JobStatus.succeeded => (Icons.check_circle, Colors.green.shade600, 'Done'),
-      JobStatus.failed => (Icons.error, scheme.error, 'Failed'),
-      JobStatus.cancelled => (Icons.cancel, scheme.onSurfaceVariant, 'Stopped'),
+    final writing = job.phase == JobPhase.writing || job.phase == JobPhase.blanking;
+    if (job.status == JobStatus.succeeded) {
+      _shownProgress = 1;
+    } else if (writing && job.fraction != null) {
+      _shownProgress = job.fraction!;
+    } else if (job.phase == JobPhase.verifying || job.phase == JobPhase.finishing) {
+      _shownProgress = 1;
+    }
+
+    final (headline, headColor) = switch (job.status) {
+      JobStatus.running => (job.stepLabel, scheme.onSurface),
+      JobStatus.succeeded => ('Done', colors.verified),
+      JobStatus.failed => ('Failed', scheme.error),
+      JobStatus.cancelled => ('Stopped', scheme.onSurfaceVariant),
+    };
+
+    final centerIcon = switch (job.status) {
+      JobStatus.succeeded => Icon(Icons.check_rounded, size: 34, color: colors.verified),
+      JobStatus.failed => Icon(Icons.close_rounded, size: 34, color: scheme.error),
+      JobStatus.cancelled => Icon(Icons.stop_rounded, size: 34, color: scheme.onSurfaceVariant),
+      JobStatus.running => null,
     };
 
     return PopScope(
       canPop: job.finished,
-      child: AlertDialog(
-        title: Row(
-          children: [
-            if (icon != null) ...[Icon(icon, color: color), const SizedBox(width: 10)],
-            Expanded(child: Text(job.title)),
-          ],
-        ),
-        content: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _Steps(job: job),
-              const SizedBox(height: 16),
-              Text(headline, style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              if (!job.finished) ...[
-                LinearProgressIndicator(value: job.fraction, minHeight: 8,
-                    borderRadius: BorderRadius.circular(4)),
-                const SizedBox(height: 8),
+      child: Dialog(
+        insetPadding: const EdgeInsets.all(32),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 26, 28, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  job.title,
+                  style: theme.textTheme.titleMedium?.copyWith(color: scheme.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 18),
+                Center(
+                  child: DiscGauge(
+                    size: 190,
+                    newFraction: 1,
+                    progress: _shownProgress,
+                    spinning: !job.finished,
+                    verified: job.status == JobStatus.succeeded,
+                    // Sits in the hub, which the painter keeps clear of data.
+                    center:
+                        centerIcon ??
+                        Text(
+                          job.fraction == null ? '…' : '${(job.fraction! * 100).toStringAsFixed(0)}%',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  headline,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(color: headColor),
+                ),
+                const SizedBox(height: 6),
+                _StatusLine(job: job),
+                const SizedBox(height: 18),
+                _Steps(job: job),
+                const SizedBox(height: 12),
+                if (_showLog)
+                  Container(
+                    height: 200,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerLowest,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    child: ListView.builder(
+                      controller: _logScroll,
+                      itemCount: job.log.length,
+                      itemBuilder: (_, i) => Text(
+                        job.log[i],
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
                 Row(
                   children: [
-                    Expanded(child: Text(job.detail ?? '', style: theme.textTheme.bodySmall)),
-                    if (job.speed != null)
-                      Text('${job.speed!.toStringAsFixed(1)}x  ', style: theme.textTheme.bodySmall),
-                    if (job.fraction != null)
-                      Text('${(job.fraction! * 100).toStringAsFixed(0)}%',
-                          style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                    TextButton.icon(
+                      onPressed: () => setState(() => _showLog = !_showLog),
+                      icon: Icon(_showLog ? Icons.expand_less : Icons.terminal, size: 18),
+                      label: Text(_showLog ? 'Hide details' : 'Show details'),
+                    ),
+                    if (_showLog)
+                      TextButton(
+                        onPressed: () => Clipboard.setData(ClipboardData(text: job.log.join('\n'))),
+                        child: const Text('Copy details'),
+                      ),
+                    const Spacer(),
+                    if (job.finished)
+                      FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))
+                    else
+                      OutlinedButton(onPressed: () => _cancel(job), child: const Text('Stop')),
                   ],
                 ),
               ],
-              if (job.status == JobStatus.failed && job.error != null)
-                SelectableText(job.error!, style: TextStyle(color: scheme.error)),
-              if (job.status == JobStatus.succeeded && job.note != null) Text(job.note!),
-              if (job.status == JobStatus.cancelled)
-                const Text('The job was stopped before it finished.'),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => setState(() => _showLog = !_showLog),
-                  icon: Icon(_showLog ? Icons.expand_less : Icons.expand_more),
-                  label: Text(_showLog ? 'Hide details' : 'Show details'),
-                ),
-              ),
-              if (_showLog)
-                Container(
-                  height: 220,
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  child: ListView.builder(
-                    controller: _logScroll,
-                    itemCount: job.log.length,
-                    itemBuilder: (_, i) => Text(
-                      job.log[i],
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11.5),
-                    ),
-                  ),
-                ),
-            ],
+            ),
           ),
         ),
-        actions: [
-          if (_showLog)
-            TextButton(
-              onPressed: () => Clipboard.setData(ClipboardData(text: job.log.join('\n'))),
-              child: const Text('Copy details'),
-            ),
-          if (job.finished)
-            FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))
-          else
-            TextButton(onPressed: () => _cancel(job), child: const Text('Stop')),
-        ],
       ),
+    );
+  }
+}
+
+class _StatusLine extends StatelessWidget {
+  final JobState job;
+
+  const _StatusLine({required this.job});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final muted = theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant);
+    final text = switch (job.status) {
+      JobStatus.failed => job.error ?? 'Something went wrong.',
+      JobStatus.succeeded => job.note ?? 'Finished.',
+      JobStatus.cancelled => 'The job was stopped before it finished.',
+      JobStatus.running => [
+        if (job.detail != null) job.detail!,
+        if (job.speed != null) '${job.speed!.toStringAsFixed(1)}x',
+      ].join('  ·  '),
+    };
+    return SelectableText(
+      text.isEmpty ? ' ' : text,
+      textAlign: TextAlign.center,
+      style: job.status == JobStatus.failed ? muted?.copyWith(color: scheme.error) : muted,
     );
   }
 }
@@ -182,14 +248,22 @@ class _Steps extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    final colors = DiscColors.of(context);
+    final n = job.stepLabels.length;
+    return Row(
       children: [
-        for (var i = 0; i < job.stepLabels.length; i++) ...[
-          if (i > 0) Icon(Icons.chevron_right, size: 16, color: scheme.outline),
-          _StepChip(
+        for (var i = 0; i < n; i++) ...[
+          if (i > 0)
+            Expanded(
+              child: Container(
+                height: 2,
+                margin: const EdgeInsets.only(bottom: 22),
+                color: (i <= job.step || job.status == JobStatus.succeeded)
+                    ? colors.laser
+                    : scheme.outlineVariant,
+              ),
+            ),
+          _Step(
             label: job.stepLabels[i],
             done: i < job.step || job.status == JobStatus.succeeded,
             active: i == job.step && !job.finished,
@@ -201,38 +275,57 @@ class _Steps extends StatelessWidget {
   }
 }
 
-class _StepChip extends StatelessWidget {
+class _Step extends StatelessWidget {
   final String label;
   final bool done, active, failed;
 
-  const _StepChip({required this.label, required this.done, required this.active, required this.failed});
+  const _Step({required this.label, required this.done, required this.active, required this.failed});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final colors = DiscColors.of(context);
     final color = failed
         ? scheme.error
         : done
-            ? Colors.green.shade600
-            : active
-                ? scheme.primary
-                : scheme.outline;
-    return Row(
+        ? colors.verified
+        : active
+        ? colors.laser
+        : scheme.outline;
+    return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          failed
-              ? Icons.error_outline
-              : done
-                  ? Icons.check_circle
-                  : active
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-          size: 16,
-          color: color,
+        Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: done || failed ? color : Colors.transparent,
+            border: Border.all(color: color, width: 2),
+          ),
+          child: done
+              ? const Icon(Icons.check, size: 13, color: Colors.white)
+              : failed
+              ? const Icon(Icons.close, size: 13, color: Colors.white)
+              : active
+              ? Center(
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+                  ),
+                )
+              : null,
         ),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: color, fontWeight: active ? FontWeight.w600 : null)),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: active || done || failed ? scheme.onSurface : scheme.onSurfaceVariant,
+            fontWeight: active ? FontWeight.w600 : null,
+          ),
+        ),
       ],
     );
   }

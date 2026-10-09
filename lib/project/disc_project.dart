@@ -29,12 +29,12 @@ class DiscEntry {
   });
 
   DiscEntry copyWith({String? name, int? bytes, int? fileCount}) => DiscEntry(
-        sourcePath: sourcePath,
-        name: name ?? this.name,
-        isDirectory: isDirectory,
-        bytes: bytes ?? this.bytes,
-        fileCount: fileCount ?? this.fileCount,
-      );
+    sourcePath: sourcePath,
+    name: name ?? this.name,
+    isDirectory: isDirectory,
+    bytes: bytes ?? this.bytes,
+    fileCount: fileCount ?? this.fileCount,
+  );
 
   /// Path on the disc, always absolute in ISO terms.
   String get isoPath => '/$name';
@@ -76,8 +76,7 @@ class DiscProject {
     return fixedOverhead + dataBlocks + perFile;
   }
 
-  DiscProject withLabel(String label) =>
-      DiscProject(label: label, entries: entries);
+  DiscProject withLabel(String label) => DiscProject(label: label, entries: entries);
 
   /// Adds sources, skipping ones already present and giving each a unique
   /// root-level name ("photos", "photos (2)", …).
@@ -90,10 +89,8 @@ class DiscProject {
     return DiscProject(label: label, entries: next);
   }
 
-  DiscProject withoutPath(String sourcePath) => DiscProject(
-        label: label,
-        entries: entries.where((e) => e.sourcePath != sourcePath).toList(),
-      );
+  DiscProject withoutPath(String sourcePath) =>
+      DiscProject(label: label, entries: entries.where((e) => e.sourcePath != sourcePath).toList());
 
   /// Renames an entry. Returns this project unchanged when [name] is
   /// invalid or already used by another entry.
@@ -105,23 +102,17 @@ class DiscProject {
     }
     return DiscProject(
       label: label,
-      entries: [
-        for (final e in entries)
-          e.sourcePath == sourcePath ? e.copyWith(name: trimmed) : e,
-      ],
+      entries: [for (final e in entries) e.sourcePath == sourcePath ? e.copyWith(name: trimmed) : e],
     );
   }
 
-  DiscProject withSize(String sourcePath, int bytes, int fileCount) =>
-      DiscProject(
-        label: label,
-        entries: [
-          for (final e in entries)
-            e.sourcePath == sourcePath
-                ? e.copyWith(bytes: bytes, fileCount: fileCount)
-                : e,
-        ],
-      );
+  DiscProject withSize(String sourcePath, int bytes, int fileCount) => DiscProject(
+    label: label,
+    entries: [
+      for (final e in entries)
+        e.sourcePath == sourcePath ? e.copyWith(bytes: bytes, fileCount: fileCount) : e,
+    ],
+  );
 
   DiscProject cleared() => DiscProject(label: label);
 }
@@ -133,7 +124,7 @@ String uniqueName(String wanted, List<DiscEntry> existing) {
   if (!taken.contains(wanted)) return wanted;
   final ext = p.extension(wanted);
   final stem = ext.isEmpty ? wanted : wanted.substring(0, wanted.length - ext.length);
-  for (var n = 2;; n++) {
+  for (var n = 2; ; n++) {
     final candidate = '$stem ($n)$ext';
     if (!taken.contains(candidate)) return candidate;
   }
@@ -171,9 +162,9 @@ Future<(int, int)> measurePath(String path) async {
   }
   if (type != FileSystemEntityType.directory) return (0, 1);
   var bytes = 0, files = 0;
-  final stream = Directory(path)
-      .list(recursive: true, followLinks: false)
-      .handleError((_) {}, test: (e) => e is FileSystemException);
+  final stream = Directory(
+    path,
+  ).list(recursive: true, followLinks: false).handleError((_) {}, test: (e) => e is FileSystemException);
   await for (final entity in stream) {
     files++;
     if (entity is File) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../burn/commands.dart';
@@ -8,6 +9,9 @@ import '../burn/jobs.dart';
 import '../burn/models.dart';
 import '../burn/xorriso.dart';
 import '../project/disc_project.dart';
+
+/// Light, dark, or follow the desktop.
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
 
 /// The xorriso the app drives, or null when it is not installed.
 final xorrisoProvider = Provider<Xorriso?>((ref) {
@@ -163,12 +167,7 @@ class JobNotifier extends Notifier<JobState?> {
   Future<JobState?> start(String title, List<JobStep> steps) async {
     final x = ref.read(xorrisoProvider);
     if (x == null || busy) return null;
-    final runner = JobRunner(
-      xorriso: x,
-      title: title,
-      steps: steps,
-      onUpdate: (s) => state = s,
-    );
+    final runner = JobRunner(xorriso: x, title: title, steps: steps, onUpdate: (s) => state = s);
     _runner = runner;
     final result = await runner.run();
     _runner = null;

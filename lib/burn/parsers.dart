@@ -19,9 +19,7 @@ final _packet = RegExp(r'^([RIM]):[01]: ?(.*)$');
 // ---------------------------------------------------------------------------
 // -devices
 
-final _deviceLine = RegExp(
-  r"^\s*\d+\s+-dev\s+'([^']+)'\s+(\S+)\s+:\s+'([^']*)'\s+'([^']*)'",
-);
+final _deviceLine = RegExp(r"^\s*\d+\s+-dev\s+'([^']+)'\s+(\S+)\s+:\s+'([^']*)'\s+'([^']*)'");
 
 /// Parses `xorriso -devices` output into drives, e.g.
 /// `0  -dev '/dev/sr0' rwrw-- :  'HL-DT-ST' 'DVDRAM GH24NSD1'`.
@@ -30,12 +28,14 @@ List<Drive> parseDevices(Iterable<String> lines) {
   for (final raw in lines) {
     final m = _deviceLine.firstMatch(stripPacket(raw).$2);
     if (m == null) continue;
-    drives.add(Drive(
-      address: m.group(1)!,
-      permissions: m.group(2)!,
-      vendor: m.group(3)!.trim(),
-      model: m.group(4)!.trim(),
-    ));
+    drives.add(
+      Drive(
+        address: m.group(1)!,
+        permissions: m.group(2)!,
+        vendor: m.group(3)!.trim(),
+        model: m.group(4)!.trim(),
+      ),
+    );
   }
   return drives;
 }
@@ -43,10 +43,11 @@ List<Drive> parseDevices(Iterable<String> lines) {
 // ---------------------------------------------------------------------------
 // -toc
 
-final _kv = RegExp(r'^(Drive type|Media current|Media status|Media summary|'
-    r'Media blocks|ISO session|Volume id)\s*:\s*(.*)$');
-final _driveType =
-    RegExp(r"vendor '([^']*)'\s+product '([^']*)'(?:\s+revision '([^']*)')?");
+final _kv = RegExp(
+  r'^(Drive type|Media current|Media status|Media summary|'
+  r'Media blocks|ISO session|Volume id)\s*:\s*(.*)$',
+);
+final _driveType = RegExp(r"vendor '([^']*)'\s+product '([^']*)'(?:\s+revision '([^']*)')?");
 final _summary = RegExp(r'(\d+) sessions?,\s*(\d+) data blocks');
 final _writable = RegExp(r'(\d+) writable');
 final _isoSession = RegExp(r'^\s*\d+\s*,\s*\d+\s*,\s*\d+s\s*,\s*(.*)$');
@@ -196,8 +197,7 @@ Progress? parseProgress(String line, {int? checkTotalBlocks}) {
   }
   m = _parenDone.firstMatch(text);
   if (m != null) {
-    return Progress(fraction: _pct(m.group(2)!), phase: JobPhase.blanking,
-        detail: m.group(1));
+    return Progress(fraction: _pct(m.group(2)!), phase: JobPhase.blanking, detail: m.group(1));
   }
   m = _blocksRead.firstMatch(text);
   if (m != null) {
@@ -220,5 +220,4 @@ Progress? parseProgress(String line, {int? checkTotalBlocks}) {
 
 double _pct(String s) => (double.parse(s) / 100).clamp(0.0, 1.0);
 
-String _mb(int blocks) =>
-    '${(blocks * sectorSize / (1024 * 1024)).toStringAsFixed(0)} MB';
+String _mb(int blocks) => '${(blocks * sectorSize / (1024 * 1024)).toStringAsFixed(0)} MB';

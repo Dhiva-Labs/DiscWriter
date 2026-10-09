@@ -1,35 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'state/providers.dart';
 import 'ui/home_shell.dart';
+import 'ui/theme.dart';
 
 const appTitle = 'Disc Writer';
 
-class CdWriterApp extends StatelessWidget {
+class CdWriterApp extends ConsumerWidget {
   const CdWriterApp({super.key});
 
-  static ThemeData _theme(Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF3D5AFE),
-      brightness: brightness,
-    );
-    return ThemeData(
-      colorScheme: scheme,
-      useMaterial3: true,
-      visualDensity: VisualDensity.compact,
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
-        isDense: true,
-      ),
-    );
-  }
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: appTitle,
       debugShowCheckedModeBanner: false,
-      theme: _theme(Brightness.light),
-      darkTheme: _theme(Brightness.dark),
+      theme: buildTheme(Brightness.light),
+      darkTheme: buildTheme(Brightness.dark),
+      themeMode: ref.watch(themeModeProvider),
       home: const HomeShell(),
     );
   }

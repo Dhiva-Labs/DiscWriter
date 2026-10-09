@@ -44,9 +44,9 @@ class XorrisoResult {
   const XorrisoResult(this.exitCode, this.lines);
 
   List<XorrisoMessage> get problems => [
-        for (final l in lines)
-          if (parseMessage(l) case final m? when m.isProblem) m,
-      ];
+    for (final l in lines)
+      if (parseMessage(l) case final m? when m.isProblem) m,
+  ];
 }
 
 /// A running invocation with live output (see [Xorriso.start]).
@@ -100,8 +100,10 @@ class Xorriso {
   Future<String> version() async {
     final r = await Process.run(executable, ['-version']);
     final lines = const LineSplitter().convert('${r.stdout}');
-    return lines.firstWhere((l) => l.startsWith('xorriso '),
-        orElse: () => lines.isEmpty ? 'xorriso' : lines.first);
+    return lines.firstWhere(
+      (l) => l.startsWith('xorriso '),
+      orElse: () => lines.isEmpty ? 'xorriso' : lines.first,
+    );
   }
 
   /// Starts xorriso with packet output on so result lines (`R:`) and
@@ -136,11 +138,7 @@ class Xorriso {
     final code = await proc.exitCode;
     final result = XorrisoResult(code, lines);
     if (check && code != 0) {
-      throw XorrisoException(
-        'xorriso exited with code $code',
-        problems: result.problems,
-        exitCode: code,
-      );
+      throw XorrisoException('xorriso exited with code $code', problems: result.problems, exitCode: code);
     }
     return result;
   }

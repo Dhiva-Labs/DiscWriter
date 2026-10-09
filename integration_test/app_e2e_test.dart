@@ -12,6 +12,7 @@ import 'package:cd_writer/app.dart';
 import 'package:cd_writer/burn/models.dart';
 import 'package:cd_writer/burn/xorriso.dart';
 import 'package:cd_writer/state/providers.dart';
+import 'package:cd_writer/ui/job_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,8 +40,11 @@ void main() {
     print('WROTE screenshots/$name.png');
   }
 
-  Future<void> pumpUntil(WidgetTester tester, bool Function() done,
-      {Duration timeout = const Duration(seconds: 60)}) async {
+  Future<void> pumpUntil(
+    WidgetTester tester,
+    bool Function() done, {
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
     final end = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(end)) {
       await tester.pump(const Duration(milliseconds: 200));
@@ -74,16 +78,22 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(RepaintBoundary(
-      key: _boundaryKey,
-      child: ProviderScope(
-        overrides: [imageFileDrivesProvider.overrideWith((_) => [drive])],
-        child: Consumer(builder: (context, r, _) {
-          ref = r;
-          return const CdWriterApp();
-        }),
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: _boundaryKey,
+        child: ProviderScope(
+          overrides: [
+            imageFileDrivesProvider.overrideWith((_) => [drive]),
+          ],
+          child: Consumer(
+            builder: (context, r, _) {
+              ref = r;
+              return const CdWriterApp();
+            },
+          ),
+        ),
       ),
-    ));
+    );
     await pumpUntil(tester, () => find.textContaining('Image file ·').evaluate().isNotEmpty);
 
     // Empty state first.
@@ -99,14 +109,17 @@ void main() {
 
     // Burn through the real button and dialog.
     await tester.tap(find.widgetWithText(FilledButton, 'Burn'));
-    await pumpUntil(tester, () => find.byType(AlertDialog).evaluate().isNotEmpty);
+    await pumpUntil(tester, () => find.byType(JobDialog).evaluate().isNotEmpty);
     await pumpUntil(tester, () {
       final job = ref.read(jobProvider);
       return job != null && job.step >= 1 && (job.fraction ?? 0) > 0;
     }, timeout: const Duration(seconds: 30)).catchError((_) {});
     await shoot(tester, '02-burning');
-    await pumpUntil(tester, () => ref.read(jobProvider)?.finished ?? false,
-        timeout: const Duration(minutes: 3));
+    await pumpUntil(
+      tester,
+      () => ref.read(jobProvider)?.finished ?? false,
+      timeout: const Duration(minutes: 3),
+    );
     final job = ref.read(jobProvider)!;
     expect(job.error, isNull);
     expect(job.note, contains('match the recorded checksums'));
@@ -114,7 +127,7 @@ void main() {
     await tester.pump();
     await shoot(tester, '03-burn-verified');
     await tester.tap(find.widgetWithText(FilledButton, 'Close'));
-    await pumpUntil(tester, () => find.byType(AlertDialog).evaluate().isEmpty);
+    await pumpUntil(tester, () => find.byType(JobDialog).evaluate().isEmpty);
 
     // The drive now reports one session with our label.
     await pumpUntil(tester, () => find.textContaining('appendable, 1 session').evaluate().isNotEmpty);
@@ -138,5 +151,11 @@ void main() {
     expect(ref.read(jobProvider)!.status.name, 'succeeded');
     await tester.tap(find.widgetWithText(FilledButton, 'Close'));
     await pumpUntil(tester, () => find.textContaining('Image file · blank').evaluate().isNotEmpty);
+
+    // Light theme: the data page again.
+    ref.read(themeModeProvider.notifier).state = ThemeMode.light;
+    await tester.tap(find.text('Data disc'));
+    await tester.pumpAndSettle();
+    await shoot(tester, '07-data-disc-light');
   });
 }

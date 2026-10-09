@@ -56,20 +56,19 @@ class JobState {
     List<String>? log,
     String? error,
     String? note,
-  }) =>
-      JobState(
-        title: title,
-        stepLabels: stepLabels,
-        status: status ?? this.status,
-        step: step ?? this.step,
-        phase: phase ?? this.phase,
-        fraction: fraction != null ? fraction() : this.fraction,
-        speed: speed != null ? speed() : this.speed,
-        detail: detail != null ? detail() : this.detail,
-        log: log ?? this.log,
-        error: error ?? this.error,
-        note: note ?? this.note,
-      );
+  }) => JobState(
+    title: title,
+    stepLabels: stepLabels,
+    status: status ?? this.status,
+    step: step ?? this.step,
+    phase: phase ?? this.phase,
+    fraction: fraction != null ? fraction() : this.fraction,
+    speed: speed != null ? speed() : this.speed,
+    detail: detail != null ? detail() : this.detail,
+    log: log ?? this.log,
+    error: error ?? this.error,
+    note: note ?? this.note,
+  );
 }
 
 /// Reports progress from inside a step.
@@ -95,8 +94,7 @@ class XorrisoStep extends JobStep {
   /// match recorded md5" out of a verify run.
   final String? Function(List<String> lines)? noteFrom;
 
-  const XorrisoStep(super.label, super.phase, this.args,
-      {this.checkTotalBlocks, this.noteFrom});
+  const XorrisoStep(super.label, super.phase, this.args, {this.checkTotalBlocks, this.noteFrom});
 }
 
 /// Arbitrary Dart work (file prep, byte comparison). Should poll
@@ -121,12 +119,7 @@ class JobRunner {
   bool _cancelled = false;
   late JobState _state;
 
-  JobRunner({
-    required this.xorriso,
-    required this.title,
-    required this.steps,
-    required this.onUpdate,
-  }) {
+  JobRunner({required this.xorriso, required this.title, required this.steps, required this.onUpdate}) {
     _state = JobState(title: title, stepLabels: [for (final s in steps) s.label]);
   }
 
@@ -150,12 +143,14 @@ class JobRunner {
     _emit(_state.copyWith(log: log));
   }
 
-  void _progress(Progress p) => _emit(_state.copyWith(
-        phase: p.phase,
-        fraction: () => p.fraction ?? _state.fraction,
-        speed: () => p.speed ?? _state.speed,
-        detail: () => p.detail ?? _state.detail,
-      ));
+  void _progress(Progress p) => _emit(
+    _state.copyWith(
+      phase: p.phase,
+      fraction: () => p.fraction ?? _state.fraction,
+      speed: () => p.speed ?? _state.speed,
+      detail: () => p.detail ?? _state.detail,
+    ),
+  );
 
   Future<JobState> run() async {
     _emit(_state);
@@ -163,13 +158,15 @@ class JobRunner {
     for (var i = 0; i < steps.length; i++) {
       if (_cancelled) return _finish(JobStatus.cancelled);
       final step = steps[i];
-      _emit(_state.copyWith(
-        step: i,
-        phase: step.phase,
-        fraction: () => null,
-        speed: () => null,
-        detail: () => null,
-      ));
+      _emit(
+        _state.copyWith(
+          step: i,
+          phase: step.phase,
+          fraction: () => null,
+          speed: () => null,
+          detail: () => null,
+        ),
+      );
       try {
         final stepNote = switch (step) {
           XorrisoStep() => await _runXorriso(step),
@@ -182,8 +179,7 @@ class JobRunner {
       } on JobFailure catch (e) {
         return _finish(JobStatus.failed, error: e.message);
       } on FileSystemException catch (e) {
-        return _finish(JobStatus.failed,
-            error: '${e.message}${e.path == null ? '' : ': ${e.path}'}');
+        return _finish(JobStatus.failed, error: '${e.message}${e.path == null ? '' : ': ${e.path}'}');
       } on ProcessException catch (e) {
         return _finish(JobStatus.failed, error: 'Could not start xorriso: ${e.message}');
       }
@@ -217,8 +213,11 @@ class JobRunner {
     final code = await proc.exitCode;
     _current = null;
     if (code != 0) {
-      throw XorrisoException('xorriso exited with code $code',
-          problems: XorrisoResult(code, lines).problems, exitCode: code);
+      throw XorrisoException(
+        'xorriso exited with code $code',
+        problems: XorrisoResult(code, lines).problems,
+        exitCode: code,
+      );
     }
     return step.noteFrom?.call(lines);
   }
@@ -261,21 +260,27 @@ Future<String?> compareImageWithDevice(
       final a = await image.read(want);
       final b = await _readFully(device, want);
       if (b.length < a.length) {
-        throw JobFailure('The disc ended after ${_mb(done + b.length)} — '
-            'the image is ${_mb(total)}.');
+        throw JobFailure(
+          'The disc ended after ${_mb(done + b.length)} — '
+          'the image is ${_mb(total)}.',
+        );
       }
       for (var i = 0; i < a.length; i++) {
         if (a[i] != b[i]) {
-          throw JobFailure('Data differs at byte ${done + i} (sector '
-              '${(done + i) ~/ sectorSize}). The disc is not a faithful copy.');
+          throw JobFailure(
+            'Data differs at byte ${done + i} (sector '
+            '${(done + i) ~/ sectorSize}). The disc is not a faithful copy.',
+          );
         }
       }
       done += a.length;
-      report(Progress(
-        fraction: done / total,
-        phase: JobPhase.verifying,
-        detail: '${_mb(done)} of ${_mb(total)} compared',
-      ));
+      report(
+        Progress(
+          fraction: done / total,
+          phase: JobPhase.verifying,
+          detail: '${_mb(done)} of ${_mb(total)} compared',
+        ),
+      );
     }
     return 'Verified: disc matches the image byte for byte';
   } finally {
