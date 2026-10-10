@@ -2,6 +2,40 @@
 
 Snap name: `discwriter` (registered to the `dhivakar1010` account).
 
+## Current state (2026-10-10)
+
+**Revision 1 (0.1.0) is in manual review, not released.** The upload
+returned:
+
+```
+Status: will need manual review
+- human review required due to 'deny-connection' constraint (interface attributes)
+```
+
+The `write: true` attribute on `optical-drive` is what triggers it: the
+base declaration denies connecting that plug unless the store grants it, so
+every upload with it needs a reviewer. Without `write: true` the snap could
+read discs but never burn one, so the attribute stays and the store has to
+approve it. Ask in the forum's store-requests category, with the
+justification below.
+
+Until revision 1 is approved or rejected, **no later revision can be
+released** (BranchPilot hit the same blocking behaviour). Do not upload
+another revision expecting it to go out first.
+
+Forum request text (category: store-requests):
+
+> **discwriter: request for optical-drive `write: true`**
+>
+> Disc Writer (https://github.com/Dhiva-Labs/DiscWriter) is a CD/DVD/Blu-ray
+> burner. Every job it performs (burning data discs and ISO images, erasing
+> rewritable media, verifying burns) is done by the bundled xorriso writing
+> to `/dev/sr*`, so it needs the optical-drive interface with `write: true`.
+> Without write access the application cannot perform its core function. We
+> are asking for installation to be allowed with the plug; manual connection
+> (`snap connect discwriter:optical-drive`) is fine and is documented in the
+> snap description and in the app itself. Revision 1 is waiting in review.
+
 ## Confinement
 
 Strict, with `plugin: flutter` and the `gnome` extension, the same shape as

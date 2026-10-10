@@ -52,15 +52,19 @@ the app warns first that stopping usually ruins a write-once disc.
 
 ## Install
 
-**Snap** (bundles xorriso):
+**Snap** (bundles xorriso). The Snap Store listing is waiting for store
+review of optical-drive write access. Until it's approved, install the
+`.snap` attached to the
+[latest release](https://github.com/Dhiva-Labs/DiscWriter/releases/latest):
 
 ```bash
-sudo snap install discwriter
+sudo snap install --dangerous ./discwriter_*_amd64.snap
 sudo snap connect discwriter:optical-drive
 ```
 
 The second command gives the snap write access to your optical drive. Snaps
-don't connect that permission automatically.
+don't connect that permission automatically. Once the listing is approved,
+`sudo snap install discwriter` replaces the first command.
 
 **Ubuntu PPA** (Ubuntu 24.04):
 
