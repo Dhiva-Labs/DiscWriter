@@ -1,0 +1,13 @@
+# Keep build outputs and packaging artifacts out of the native source
+# tarball (the bare tar-ignore keeps dpkg-source's default VCS patterns).
+tar-ignore
+tar-ignore = "dist"
+tar-ignore = "screenshots"
+tar-ignore = "*.snap"
+tar-ignore = "parts"
+tar-ignore = "prime"
+tar-ignore = "stage"
+tar-ignore = "build"
+tar-ignore = ".dart_tool"
+tar-ignore = ".idea"
+tar-ignore = "*.iml"

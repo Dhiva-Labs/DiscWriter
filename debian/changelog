@@ -1,0 +1,11 @@
+discwriter (0.1.0~noble1) noble; urgency=medium
+
+  * Initial release.
+  * Data discs with drag-and-drop, live disc gauge and exact pre-burn size
+    check.
+  * Multi-session append, close-disc and erase-first options.
+  * Verification by recorded MD5 for data discs and byte comparison for
+    images.
+  * Burn image, save as ISO, quick and full erase, and simulation.
+
+ -- Dhiva Labs <dhivakar1010@gmail.com>  Sat, 10 Oct 2026 05:36:29 +0530

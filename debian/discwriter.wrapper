@@ -1,0 +1,6 @@
+#!/bin/sh
+# Disc Writer ships as a self-contained Flutter bundle under /opt, where its
+# data/ and lib/ directories must stay relative to the executable. Launch it
+# from there rather than symlinking the binary into /usr/bin, which would
+# break that relative layout.
+exec /opt/discwriter/cd_writer "$@"

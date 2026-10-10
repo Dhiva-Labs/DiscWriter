@@ -169,9 +169,15 @@ class Xorriso {
 /// user lacks permission to open the device (xorriso then lists nothing).
 List<Drive> sysfsDrives({String root = '/sys/block'}) {
   final dir = Directory(root);
-  if (!dir.existsSync()) return const [];
+  List<FileSystemEntity> entries;
+  try {
+    entries = dir.listSync();
+  } on FileSystemException {
+    // Missing, or hidden by snap confinement; xorriso's own scan still runs.
+    return const [];
+  }
   final drives = <Drive>[];
-  for (final entry in dir.listSync()) {
+  for (final entry in entries) {
     final name = p.basename(entry.path);
     if (!name.startsWith('sr')) continue;
     String read(String f) {

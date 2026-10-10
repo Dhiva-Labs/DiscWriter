@@ -20,11 +20,15 @@
 - [x] Image file as drive (`stdio:`), used to rehearse burns and for testing
 - [x] Unit, xorriso end-to-end and UI integration tests
 
+## v0.1.0 release (done)
+
+- [x] App icon, desktop entry
+- [x] Snap (`discwriter`, strict, bundled xorriso, `optical-drive` write plug)
+- [x] `.deb` and Launchpad PPA source package (`ppa:dhiva-labs/apps`)
+- [x] GitHub Actions CI and GitHub release
+
 ## Next
 
-- [ ] **Packaging**: snap with bundled xorriso and the `optical-drive`
-      plug, plus a `.deb` (same shape as BranchPilot's `snap/` and
-      `packaging/`)
 - [ ] **Media change detection**: watch udev / `/sys/block/srN` events so
       inserting a disc refreshes without the refresh button
 - [ ] **Audio CD**: WAV/FLAC tracks via `cdrskin` (xorriso doesn't write
@@ -35,4 +39,4 @@
       root-level entries
 - [ ] **Bootable images from a project**: El Torito boot image selection
 - [ ] **Recent projects**: save/load project files (`.discproj` JSON)
-- [ ] Desktop entry, icon, AppStream metadata
+- [ ] AppStream metadata

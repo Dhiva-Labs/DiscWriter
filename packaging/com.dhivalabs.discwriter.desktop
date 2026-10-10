@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Disc Writer
+GenericName=Disc Burner
+Comment=Burn CDs, DVDs and Blu-ray discs
+Exec=discwriter
+Icon=discwriter
+Terminal=false
+Categories=AudioVideo;DiscBurning;Utility;
+Keywords=burn;cd;dvd;bluray;iso;disc;xorriso;
+StartupWMClass=cd_writer

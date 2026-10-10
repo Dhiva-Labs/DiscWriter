@@ -1,0 +1,109 @@
+# Snap Store packaging for Disc Writer.
+#
+# Same shape as BranchPilot's snap: `plugin: flutter` + the `gnome`
+# extension under strict confinement, which passes automated store review.
+# xorriso ships inside the snap because a confined app cannot run the host's.
+#
+# See packaging/SNAP.md for the build and publish procedure.
+name: discwriter
+title: Disc Writer
+base: core22
+version: '0.1.0'
+summary: Burn CDs, DVDs and Blu-ray discs on Linux
+description: |
+  Disc Writer is a clean, modern disc burner for the Linux desktop.
+
+  * Data discs: drop in files and folders, set a label, and watch a live
+    disc gauge fill up. The exact size is checked before writing, so an
+    over-full project never wastes a write-once disc.
+  * Multi-session: add files to a disc that is still open, or close it for
+    the widest compatibility.
+  * Verification: every burn is read back and checked — against recorded
+    MD5 checksums for data discs, byte for byte for images.
+  * Burn image: write .iso and .img files verbatim (bootable installers stay
+    bootable).
+  * Save as ISO, quick and full erase of rewritable media, and simulation
+    (laser off) for every job.
+
+  Burning is done by the bundled xorriso (libburnia).
+
+  Drive access: writing to an optical drive needs the optical-drive
+  interface with write access, which is not connected automatically. Run
+  this once after installing:
+
+    sudo snap connect discwriter:optical-drive
+
+  A Dhiva Labs project.
+
+grade: stable
+confinement: strict
+icon: snap/gui/discwriter.png
+license: MIT
+website: https://github.com/Dhiva-Labs/DiscWriter
+source-code: https://github.com/Dhiva-Labs/DiscWriter
+issues: https://github.com/Dhiva-Labs/DiscWriter/issues
+contact: dhivakar1010@gmail.com
+
+architectures:
+  - build-on: amd64
+
+plugs:
+  # Burning needs write access to /dev/sr*. The write attribute keeps the
+  # interface from auto-connecting, hence the `snap connect` line above.
+  optical-drive:
+    interface: optical-drive
+    write: true
+
+apps:
+  discwriter:
+    command: cd_writer
+    extensions:
+      - gnome
+    desktop: usr/share/applications/discwriter.desktop
+    plugs:
+      - home
+      - removable-media
+      - optical-drive
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - gsettings
+
+parts:
+  discwriter:
+    plugin: flutter
+    source: .
+    flutter-target: lib/main.dart
+    # A host-side build/ directory carries a CMakeCache.txt naming host
+    # paths; CMake refuses to reuse it and the build dies at configure.
+    override-pull: |
+      craftctl default
+      rm -rf build .dart_tool .flutter .pub-cache dist parts prime stage \
+        linux/flutter/ephemeral
+    build-packages:
+      - clang
+      - cmake
+      - ninja-build
+      - pkg-config
+      - libgtk-3-dev
+      - liblzma-dev
+      - libjsoncpp-dev
+      - curl
+      - unzip
+      - xz-utils
+      - git
+    stage-packages:
+      - libgtk-3-0
+      # The burning engine. Xorriso.locate() prefers $SNAP/usr/bin/xorriso.
+      - xorriso
+
+  desktop-assets:
+    plugin: dump
+    source: snap/gui
+    organize:
+      discwriter.desktop: usr/share/applications/discwriter.desktop
+      discwriter.png: usr/share/icons/hicolor/256x256/apps/discwriter.png
+    stage:
+      - usr/share/applications/discwriter.desktop
+      - usr/share/icons/hicolor/256x256/apps/discwriter.png

@@ -50,6 +50,32 @@ in the sidebar overrides that.
 **Safe cancelling.** You can stop at any point. While the drive is writing,
 the app warns first that stopping usually ruins a write-once disc.
 
+## Install
+
+**Snap** (bundles xorriso):
+
+```bash
+sudo snap install discwriter
+sudo snap connect discwriter:optical-drive
+```
+
+The second command gives the snap write access to your optical drive. Snaps
+don't connect that permission automatically.
+
+**Ubuntu PPA** (Ubuntu 24.04):
+
+```bash
+sudo add-apt-repository ppa:dhiva-labs/apps
+sudo apt install discwriter
+```
+
+**.deb**: download `discwriter_<version>_amd64.deb` from the
+[releases page](https://github.com/Dhiva-Labs/DiscWriter/releases), then:
+
+```bash
+sudo apt install ./discwriter_*_amd64.deb
+```
+
 ## Requirements
 
 - Linux with an optical drive (internal or USB)
@@ -68,7 +94,13 @@ flutter pub get
 flutter build linux --release
 ```
 
-The bundle lands in `build/linux/x64/release/bundle/`.
+The bundle lands in `build/linux/x64/release/bundle/`. Packaging:
+
+- `packaging/build_deb.sh` builds the `.deb` from the release bundle
+- `snapcraft pack --use-lxd` builds the snap; see [packaging/SNAP.md](packaging/SNAP.md)
+- the Launchpad PPA is built offline from vendored inputs; see
+  [packaging/PPA.md](packaging/PPA.md)
+- `python3 tool/make_icon.py` regenerates the app icon
 
 ## Tests
 

@@ -1,0 +1,33 @@
+Source: discwriter
+Section: utils
+Priority: optional
+Maintainer: Dhiva Labs <dhivakar1010@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+               clang,
+               cmake,
+               ninja-build,
+               pkg-config,
+               libgtk-3-dev,
+               liblzma-dev,
+               libjsoncpp-dev,
+               xz-utils,
+               git,
+               python3
+Standards-Version: 4.6.2
+Homepage: https://github.com/Dhiva-Labs/DiscWriter
+Rules-Requires-Root: no
+
+Package: discwriter
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}, libgtk-3-0, xorriso
+# xorriso is a hard dependency: every burn, erase, verify and drive scan
+# shells out to it, and Disc Writer has no burning code of its own.
+Description: Burn CDs, DVDs and Blu-ray discs on Linux
+ Disc Writer is a modern disc burner for the Linux desktop, driving the
+ xorriso command-line tool.
+ .
+ It builds data discs with a live capacity gauge and an exact pre-burn size
+ check, appends sessions to discs that are still open, and verifies every
+ burn: against recorded MD5 checksums for data discs, byte for byte for
+ images. It also burns and saves ISO images, erases rewritable media, and
+ can simulate any job with the laser off.

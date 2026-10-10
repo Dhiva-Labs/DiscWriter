@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -88,7 +90,7 @@ class DiscInfoPage extends ConsumerWidget {
                                 'cannot open it. Add yourself to the cdrom group and log in again:\n\n'
                                 '    sudo usermod -aG cdrom \$USER\n\n'
                                 'If Disc Writer is installed as a snap, also run:\n\n'
-                                '    sudo snap connect disc-writer:optical-drive',
+                                '    sudo snap connect discwriter:optical-drive',
                                 style: TextStyle(color: theme.colorScheme.onErrorContainer),
                               ),
                             ],
@@ -99,7 +101,12 @@ class DiscInfoPage extends ConsumerWidget {
                     ],
                     section('Drive', [
                       if (drive == null)
-                        const Text('No optical drive found. Plug in a USB drive and use "Rescan drives".')
+                        SelectableText(
+                          'No optical drive found. Plug in a USB drive and use "Rescan drives".'
+                          '${Platform.environment.containsKey('SNAP') ? '\n\nDisc Writer is running as a snap, which needs '
+                                    'permission to use the drive. Run this once, then rescan:\n\n'
+                                    '    sudo snap connect discwriter:optical-drive' : ''}',
+                        )
                       else ...[
                         row('Address', drive.address),
                         // xorriso names every file-backed drive "YOYODYNE WARP DRIVE".
