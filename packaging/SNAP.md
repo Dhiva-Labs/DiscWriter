@@ -67,7 +67,7 @@ What strict confinement means for Disc Writer:
 snapcraft pack --use-lxd
 ```
 
-Produces `discwriter_0.1.0_amd64.snap` in the repository root (`..._arm64.snap` when
+Produces `discwriter_0.1.1_amd64.snap` in the repository root (`..._arm64.snap` when
 run on an arm64 machine: `architectures:` in `snap/snapcraft.yaml` builds on each
 architecture it runs on). CI builds both and attaches them to a release; it never
 uploads to the Store. The part's
@@ -77,7 +77,7 @@ CMakeCache.txt names host paths and CMake refuses to reuse it.
 ## Smoke test before uploading
 
 ```bash
-sudo snap install --dangerous ./discwriter_0.1.0_amd64.snap
+sudo snap install --dangerous ./discwriter_0.1.1_amd64.snap
 sudo snap connect discwriter:optical-drive
 discwriter
 ```
@@ -85,8 +85,8 @@ discwriter
 ## Uploading
 
 ```bash
-snapcraft upload --release=stable discwriter_0.1.0_amd64.snap
-snapcraft upload --release=stable discwriter_0.1.0_arm64.snap   # the arm64 build
+snapcraft upload --release=stable discwriter_0.1.1_amd64.snap
+snapcraft upload --release=stable discwriter_0.1.1_arm64.snap   # the arm64 build
 snapcraft status discwriter
 ```
 
