@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds discwriter_<version>_amd64.deb from the Linux release bundle.
+# Builds discwriter_<version>_<arch>.deb from the Linux release bundle, where
+# <arch> is the architecture of the machine it runs on (amd64 or arm64).
 #
 # Run from the repo root after `flutter build linux --release`:
 #
@@ -13,7 +14,18 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 OUT_DIR="${1:-dist}"
-BUNDLE=build/linux/x64/release/bundle
+# The package architecture follows the build machine, and so does Flutter's
+# output directory (build/linux/x64 or build/linux/arm64).
+DEB_ARCH="$(dpkg --print-architecture)"
+case "$DEB_ARCH" in
+  amd64) FLUTTER_ARCH=x64 ;;
+  arm64) FLUTTER_ARCH=arm64 ;;
+  *)
+    echo "error: unsupported architecture '$DEB_ARCH' (amd64 or arm64)" >&2
+    exit 1
+    ;;
+esac
+BUNDLE="build/linux/$FLUTTER_ARCH/release/bundle"
 ICON_DIR=assets/icon
 ICON_SIZES="16 32 48 64 128 256 512"
 VERSION="$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)"
@@ -77,7 +89,7 @@ Package: discwriter
 Version: ${VERSION}
 Section: utils
 Priority: optional
-Architecture: amd64
+Architecture: ${DEB_ARCH}
 Maintainer: Dhiva Labs <dhivakar1010@gmail.com>
 Installed-Size: ${INSTALLED_SIZE}
 Depends: libgtk-3-0t64 | libgtk-3-0, xorriso
@@ -98,6 +110,6 @@ find "$PKG" -type f -exec chmod 0644 {} +
 chmod 0755 "$PKG/usr/bin/discwriter" "$PKG/usr/lib/discwriter/cd_writer"
 
 mkdir -p "$OUT_DIR"
-DEB="$OUT_DIR/discwriter_${VERSION}_amd64.deb"
+DEB="$OUT_DIR/discwriter_${VERSION}_${DEB_ARCH}.deb"
 dpkg-deb --build --root-owner-group "$PKG" "$DEB" >/dev/null
 echo "built $DEB"

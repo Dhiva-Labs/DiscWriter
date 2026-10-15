@@ -45,7 +45,8 @@ issues: https://github.com/Dhiva-Labs/DiscWriter/issues
 contact: dhivakar1010@gmail.com
 
 architectures:
-  - build-on: amd64
+  - build-on: [amd64]
+  - build-on: [arm64]
 
 plugs:
   # Burning needs write access to /dev/sr*. The write attribute keeps the
