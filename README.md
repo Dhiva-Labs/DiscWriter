@@ -1,5 +1,8 @@
 # Disc Writer
 
+[![ARM64 builds](https://github.com/Dhiva-Labs/DiscWriter/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Dhiva-Labs/DiscWriter/actions/workflows/ci.yml)
+![Linux x64 | arm64](https://img.shields.io/badge/Linux-x64%20%7C%20arm64-informational?logo=linux&logoColor=white)
+
 A clean, modern disc-burning app for Linux desktop. Disc Writer burns data
 CDs, DVDs and Blu-ray discs, writes ISO images, saves projects as ISO files
 and erases rewritable media. All the burning is done by
@@ -55,10 +58,12 @@ the app warns first that stopping usually ruins a write-once disc.
 **Snap** (bundles xorriso). The Snap Store listing is waiting for store
 review of optical-drive write access. Until it's approved, install the
 `.snap` attached to the
-[latest release](https://github.com/Dhiva-Labs/DiscWriter/releases/latest):
+[latest release](https://github.com/Dhiva-Labs/DiscWriter/releases/latest).
+It comes for both architectures, `_amd64.snap` for Intel / AMD and
+`_arm64.snap` for ARM:
 
 ```bash
-sudo snap install --dangerous ./discwriter_*_amd64.snap
+sudo snap install --dangerous ./discwriter_*_$(dpkg --print-architecture).snap
 sudo snap connect discwriter:optical-drive
 ```
 
@@ -73,12 +78,20 @@ sudo add-apt-repository ppa:dhiva-labs/apps
 sudo apt install discwriter
 ```
 
-**.deb**: download `discwriter_<version>_amd64.deb` from the
+**.deb**: download `discwriter_<version>_amd64.deb` (Intel / AMD) or
+`discwriter_<version>_arm64.deb` (ARM) from the
 [releases page](https://github.com/Dhiva-Labs/DiscWriter/releases), then:
 
 ```bash
-sudo apt install ./discwriter_*_amd64.deb
+sudo apt install ./discwriter_*_$(dpkg --print-architecture).deb
 ```
+
+**Portable tarball**: `discwriter-<version>-linux-x64.tar.gz` or
+`discwriter-<version>-linux-arm64.tar.gz` from the same page. Extract it and
+run `./cd_writer` from the `discwriter-<version>/` directory. It needs
+`xorriso` installed.
+
+`SHA256SUMS` on the release lists the checksum of every file.
 
 ## Requirements
 
@@ -98,9 +111,12 @@ flutter pub get
 flutter build linux --release
 ```
 
-The bundle lands in `build/linux/x64/release/bundle/`. Packaging:
+The bundle lands in `build/linux/x64/release/bundle/`, or in
+`build/linux/arm64/release/bundle/` on an arm64 machine. Packaging, which
+always targets the architecture of the machine it runs on:
 
 - `packaging/build_deb.sh` builds the `.deb` from the release bundle
+- `packaging/build_tarball.sh` builds the portable tarball
 - `snapcraft pack --use-lxd` builds the snap; see [packaging/SNAP.md](packaging/SNAP.md)
 - the Launchpad PPA is built offline from vendored inputs; see
   [packaging/PPA.md](packaging/PPA.md)
@@ -125,6 +141,9 @@ writes the images in `screenshots/`.
 
 If xorriso isn't on `PATH`, point `CD_WRITER_XORRISO` at a binary. Without
 one, the end-to-end tests are skipped.
+
+CI runs all of this on Linux x64 and Linux arm64, and builds the packages and
+the snap for both.
 
 ## Layout
 
