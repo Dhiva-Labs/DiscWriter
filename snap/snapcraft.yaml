@@ -8,7 +8,7 @@
 name: discwriter
 title: Disc Writer
 base: core22
-version: '0.1.0'
+version: '0.1.1'
 summary: Burn CDs, DVDs and Blu-ray discs on Linux
 description: |
   Disc Writer is a clean, modern disc burner for the Linux desktop.
