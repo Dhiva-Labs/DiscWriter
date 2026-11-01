@@ -1,12 +1,15 @@
 name: CI
 
-# Builds, tests and packages Disc Writer for Linux x64 and Linux arm64.
+# Builds, tests and packages Disc Writer for Linux x64 and Linux arm64: the
+# tarball, .deb and snap, and from the same build an .rpm (Fedora, RHEL,
+# openSUSE), an Arch package, an AUR PKGBUILD, an AppImage and a Flatpak
+# bundle.
 #
 # Releases are made by hand and carry the tarball, .deb and snap plus
 # SHA256SUMS. When a release is published (or this workflow is run by hand
-# with release_tag set), the release job attaches the tarball, .deb and snap
-# of every architecture built here, x64 and arm64, and skips any file the
-# release already has, so hand-made assets win. The checksums of the files it
+# with release_tag set), the release job attaches every package of every
+# architecture built here, x64 and arm64, and skips any file the release
+# already has, so hand-made assets win. The checksums of the files it
 # adds go into SHA256SUMS. Nothing is ever uploaded to the Snap Store.
 
 on:
@@ -192,6 +195,192 @@ jobs:
           path: ${{ runner.temp }}/smoke.png
           if-no-files-found: ignore
 
+  # Repackages each architecture's .deb for Fedora/RHEL/openSUSE (.rpm),
+  # Arch (.pkg.tar.zst) and any glibc distribution (AppImage), so every format
+  # ships the binary tested above. Each one is then installed on the real
+  # distribution and run there (packaging/linux-distros/verify.sh): the
+  # package manager must resolve its libraries and xorriso, ldd must find
+  # every library, that xorriso must burn and verify a session on a
+  # file-backed drive, and smoke.sh must see a painted UI that ran xorriso.
+  distros:
+    name: Other distros ${{ matrix.arch }}
+    needs: [linux]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, deb_arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, deb_arch: arm64, runner: ubuntu-24.04-arm }
+    env:
+      NFPM_VERSION: '2.48.0'
+      APPIMAGETOOL_VERSION: '1.9.1'
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-${{ matrix.arch }}
+          path: deb
+
+      - name: Install nfpm and appimagetool
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$(uname -m)" in
+            x86_64) nfpm_arch=x86_64; ai_arch=x86_64 ;;
+            aarch64) nfpm_arch=arm64; ai_arch=aarch64 ;;
+          esac
+          mkdir -p "$RUNNER_TEMP/bin"
+          cd "$RUNNER_TEMP/bin"
+          tarball="nfpm_${NFPM_VERSION}_Linux_${nfpm_arch}.tar.gz"
+          gh release download "v$NFPM_VERSION" -R goreleaser/nfpm -p "$tarball" -p checksums.txt
+          grep " $tarball\$" checksums.txt | sha256sum -c -
+          tar -xzf "$tarball" nfpm
+          gh release download "$APPIMAGETOOL_VERSION" -R AppImage/appimagetool \
+            -p "appimagetool-$ai_arch.AppImage" -O appimagetool
+          chmod +x appimagetool
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Build .rpm, Arch package and AppImage
+        run: |
+          VERSION="$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)"
+          dpkg-deb -x "deb/discwriter_${VERSION}_${{ matrix.deb_arch }}.deb" "$RUNNER_TEMP/root"
+          VERSION="$VERSION" packaging/linux-distros/pack.sh "$RUNNER_TEMP/root" ${{ matrix.deb_arch }} dist
+          # The Flatpak job builds from the same tree; tar keeps modes and symlinks.
+          tar -C "$RUNNER_TEMP/root" -cJf "$RUNNER_TEMP/tree.tar.xz" .
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tree-${{ matrix.arch }}
+          path: ${{ runner.temp }}/tree.tar.xz
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Install and run on Fedora, openSUSE and Arch
+        run: packaging/linux-distros/verify.sh dist ${{ matrix.deb_arch }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: distros-${{ matrix.arch }}
+          path: |
+            dist/*.rpm
+            dist/*.pkg.tar.zst
+            dist/*.AppImage
+          if-no-files-found: error
+
+  # AUR recipe: PKGBUILD + .SRCINFO for discwriter-bin, rendered with the
+  # checksums of the .debs built above and proven with makepkg and an
+  # install on archlinux:latest. Pushing it to the AUR is a manual step.
+  aur:
+    name: AUR PKGBUILD
+    needs: [linux]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: 'linux-*'
+          path: debs
+          merge-multiple: true
+
+      - name: Render and check the PKGBUILD
+        run: |
+          VERSION="$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)"
+          VERSION="$VERSION" packaging/arch/aur.sh \
+            "debs/discwriter_${VERSION}_amd64.deb" "debs/discwriter_${VERSION}_arm64.deb" dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: aur
+          path: dist/*-aur.tar.gz
+          if-no-files-found: error
+
+  # The Flatpak, built from the same installed tree. The GNOME runtime has no
+  # xorriso, so the manifest builds GNU xorriso into the bundle; the app finds
+  # it on PATH. The bundle is then installed in the builder image and checked
+  # inside the sandbox: every library resolves, the app gets that xorriso,
+  # xorriso burns and verifies a session on a file-backed drive, and the
+  # sandboxed app paints its UI and runs xorriso (smoke.sh). There is no
+  # optical drive on the runners, so real drive access is not exercised.
+  flatpak:
+    name: Flatpak ${{ matrix.arch }}
+    needs: [distros]
+    # It only needs the tree, which distros uploads before its distribution
+    # checks, so a Flatpak problem shows in the same run as a failed check.
+    if: ${{ !cancelled() && needs.distros.result != 'skipped' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
+      options: --privileged
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, fp_arch: x86_64, runner: ubuntu-24.04 }
+          - { arch: arm64, fp_arch: aarch64, runner: ubuntu-24.04-arm }
+    env:
+      APP_ID: com.dhivalabs.discwriter
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: tree-${{ matrix.arch }}
+          path: ${{ runner.temp }}
+
+      - name: Unpack the installed tree
+        id: v
+        run: |
+          mkdir -p packaging/flatpak/tree
+          tar -xJf "$RUNNER_TEMP/tree.tar.xz" -C packaging/flatpak/tree
+          VERSION="$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "bundle=discwriter-$VERSION-${{ matrix.fp_arch }}.flatpak" >> "$GITHUB_OUTPUT"
+
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: packaging/flatpak/com.dhivalabs.discwriter.yml
+          bundle: ${{ steps.v.outputs.bundle }}
+          arch: ${{ matrix.fp_arch }}
+          cache: false
+          artifact-name: flatpak-${{ matrix.arch }}
+
+      - name: Install the bundle and check it inside the sandbox
+        env:
+          BUNDLE: ${{ steps.v.outputs.bundle }}
+        run: |
+          flatpak install --user -y --noninteractive "$BUNDLE"
+          flatpak info --user --show-permissions "$APP_ID"
+          flatpak run --command=sh "$APP_ID" -s < packaging/flatpak/ldd-check.sh
+          # Xorriso.locate() takes the first xorriso on PATH: the bundled one.
+          flatpak run --command=sh "$APP_ID" -c '
+            set -eu
+            [ "$(command -v xorriso)" = /app/bin/xorriso ]
+            xorriso -version
+          '
+
+      - name: Run the sandboxed app (Xvfb)
+        timeout-minutes: 5
+        run: |
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg-runtime" SMOKE_FB="$RUNNER_TEMP/fb"
+          mkdir -p -m 0700 "$XDG_RUNTIME_DIR"
+          mkdir -p "$SMOKE_FB"
+          # The job runs as root, but $HOME is the runner user's bind mount
+          # and the sandbox drops root's capabilities, so nothing inside it
+          # could write the ISO or the shim's log there. Own it first.
+          chown "$(id -u):$(id -g)" "$HOME"
+          # smoke.sh burns with the sandbox's xorriso, and its shim (in
+          # $HOME, which the sandbox sees) wraps that same binary.
+          export XORRISO=/app/bin/xorriso XORRISO_CMD="flatpak run --command=xorriso $APP_ID"
+          xvfb-run -a -s "-screen 0 1280x800x24 -fbdir $SMOKE_FB" \
+            dbus-run-session -- bash packaging/linux-distros/smoke.sh \
+            flatpak run --env=PATH="$HOME/xorriso-shim:/app/bin:/usr/bin" "$APP_ID"
+
   # The snap is built from the same sources by snapcraft in an LXD container,
   # with xorriso staged inside it. It is a workflow artifact only: nothing is
   # uploaded to the Snap Store.
@@ -244,7 +433,7 @@ jobs:
   # that can write.
   release:
     name: Release assets
-    needs: [linux, snap]
+    needs: [linux, snap, distros, aur, flatpak]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -270,15 +459,36 @@ jobs:
           path: assets
           merge-multiple: true
 
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: 'distros-*'
+          path: assets
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: aur
+          path: assets
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: 'flatpak-*'
+          path: assets
+          merge-multiple: true
+
       - name: Select the release assets
         id: select
         run: |
           VERSION="$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)"
-          NAMES=""
+          NAMES="discwriter-bin-${VERSION}-aur.tar.gz"
           for a in x64 arm64; do NAMES="$NAMES discwriter-${VERSION}-linux-${a}.tar.gz"; done
           for a in amd64 arm64; do NAMES="$NAMES discwriter_${VERSION}_${a}.deb discwriter_${VERSION}_${a}.snap"; done
+          for a in x86_64 aarch64; do
+            NAMES="$NAMES discwriter-${VERSION}-1.${a}.rpm discwriter-${VERSION}-1-${a}.pkg.tar.zst"
+            NAMES="$NAMES DiscWriter-${VERSION}-${a}.AppImage discwriter-${VERSION}-${a}.flatpak"
+          done
           ls -l assets
-          [ "$(ls assets | wc -l)" -eq 6 ]
+          [ "$(ls assets | wc -l)" -eq 15 ]
           for n in $NAMES; do ls -l "assets/$n"; done
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "names=$NAMES" >> "$GITHUB_OUTPUT"

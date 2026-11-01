@@ -62,3 +62,6 @@ app.*.map.json
 # Vendored Flutter SDK + pub cache for the network-isolated Launchpad
 # builders: shipped in the source package, kept out of git.
 /packaging/vendor/*.tar.xz
+
+# Installed tree the Flatpak job unpacks from the .deb
+/packaging/flatpak/tree/
