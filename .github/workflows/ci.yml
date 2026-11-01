@@ -299,13 +299,10 @@ jobs:
           path: dist/*-aur.tar.gz
           if-no-files-found: error
 
-  # The Flatpak, built from the same installed tree. The GNOME runtime has no
-  # xorriso, so the manifest builds GNU xorriso into the bundle; the app finds
-  # it on PATH. The bundle is then installed in the builder image and checked
-  # inside the sandbox: every library resolves, the app gets that xorriso,
-  # xorriso burns and verifies a session on a file-backed drive, and the
-  # sandboxed app paints its UI and runs xorriso (smoke.sh). There is no
-  # optical drive on the runners, so real drive access is not exercised.
+  # The Flatpak, built from the same installed tree in the Flathub builder
+  # image. The GNOME runtime has no xorriso, so the manifest builds GNU
+  # xorriso into the bundle; the app finds it on PATH. The next job tests
+  # the bundle.
   flatpak:
     name: Flatpak ${{ matrix.arch }}
     needs: [distros]
@@ -323,8 +320,6 @@ jobs:
         include:
           - { arch: x64, fp_arch: x86_64, runner: ubuntu-24.04 }
           - { arch: arm64, fp_arch: aarch64, runner: ubuntu-24.04-arm }
-    env:
-      APP_ID: com.dhivalabs.discwriter
     steps:
       - uses: actions/checkout@v7
 
@@ -350,12 +345,52 @@ jobs:
           cache: false
           artifact-name: flatpak-${{ matrix.arch }}
 
-      - name: Install the bundle and check it inside the sandbox
-        env:
-          BUNDLE: ${{ steps.v.outputs.bundle }}
+  # Installs the bundle the way a user would (runtime from Flathub) on an
+  # Ubuntu runner and checks it inside the sandbox: every library resolves,
+  # the app gets the bundled xorriso, xorriso burns and verifies a session on
+  # a file-backed drive, and the sandboxed app paints its UI and runs xorriso
+  # (smoke.sh). There is no optical drive on the runners, so real drive
+  # access is not exercised. Not in the builder image: GTK finds no GL
+  # implementation under its Xvfb, so Flutter never paints there.
+  flatpak-run:
+    name: Flatpak on Ubuntu ${{ matrix.arch }}
+    needs: [flatpak]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, fp_arch: x86_64, runner: ubuntu-24.04 }
+          - { arch: arm64, fp_arch: aarch64, runner: ubuntu-24.04-arm }
+    env:
+      APP_ID: com.dhivalabs.discwriter
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: flatpak-${{ matrix.arch }}
+          path: bundle
+
+      # xvfb, xauth, dbus-x11: the smoke run. A fresh home directory, as
+      # smoke.sh expects.
+      - name: Install Flatpak and a display
         run: |
-          flatpak install --user -y --noninteractive "$BUNDLE"
+          sudo apt-get update
+          sudo apt-get install -y flatpak xvfb xauth dbus-x11
+          mkdir -p "$RUNNER_TEMP/home"
+          echo "HOME=$RUNNER_TEMP/home" >> "$GITHUB_ENV"
+
+      - name: Install the bundle with its runtime from Flathub
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          VERSION="$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)"
+          flatpak install --user -y --noninteractive "bundle/discwriter-$VERSION-${{ matrix.fp_arch }}.flatpak"
           flatpak info --user --show-permissions "$APP_ID"
+
+      - name: Check the bundle inside the sandbox
+        run: |
           flatpak run --command=sh "$APP_ID" -s < packaging/flatpak/ldd-check.sh
           # Xorriso.locate() takes the first xorriso on PATH: the bundled one.
           flatpak run --command=sh "$APP_ID" -c '
@@ -367,13 +402,13 @@ jobs:
       - name: Run the sandboxed app (Xvfb)
         timeout-minutes: 5
         run: |
-          export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg-runtime" SMOKE_FB="$RUNNER_TEMP/fb"
-          mkdir -p -m 0700 "$XDG_RUNTIME_DIR"
+          export SMOKE_FB="$RUNNER_TEMP/fb"
           mkdir -p "$SMOKE_FB"
-          # The job runs as root, but $HOME is the runner user's bind mount
-          # and the sandbox drops root's capabilities, so nothing inside it
-          # could write the ISO or the shim's log there. Own it first.
-          chown "$(id -u):$(id -g)" "$HOME"
+          # The runner has no login session, so no XDG_RUNTIME_DIR.
+          if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
+            export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg-runtime"
+            mkdir -p -m 0700 "$XDG_RUNTIME_DIR"
+          fi
           # smoke.sh burns with the sandbox's xorriso, and its shim (in
           # $HOME, which the sandbox sees) wraps that same binary.
           export XORRISO=/app/bin/xorriso XORRISO_CMD="flatpak run --command=xorriso $APP_ID"
@@ -433,7 +468,7 @@ jobs:
   # that can write.
   release:
     name: Release assets
-    needs: [linux, snap, distros, aur, flatpak]
+    needs: [linux, snap, distros, aur, flatpak-run]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
