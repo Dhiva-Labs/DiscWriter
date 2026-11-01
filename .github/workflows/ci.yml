@@ -370,6 +370,10 @@ jobs:
           export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg-runtime" SMOKE_FB="$RUNNER_TEMP/fb"
           mkdir -p -m 0700 "$XDG_RUNTIME_DIR"
           mkdir -p "$SMOKE_FB"
+          # The job runs as root, but $HOME is the runner user's bind mount
+          # and the sandbox drops root's capabilities, so nothing inside it
+          # could write the ISO or the shim's log there. Own it first.
+          chown "$(id -u):$(id -g)" "$HOME"
           # smoke.sh burns with the sandbox's xorriso, and its shim (in
           # $HOME, which the sandbox sees) wraps that same binary.
           export XORRISO=/app/bin/xorriso XORRISO_CMD="flatpak run --command=xorriso $APP_ID"
