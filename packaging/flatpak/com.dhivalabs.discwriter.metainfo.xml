@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.dhivalabs.discwriter</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Disc Writer</name>
+  <summary>Burn CDs, DVDs and Blu-ray discs</summary>
+  <description>
+    <p>Disc Writer is a modern disc burner for the Linux desktop, driving the
+      xorriso command-line tool. It builds data discs with a live capacity
+      gauge and an exact pre-burn size check, appends sessions to open discs,
+      verifies every burn (recorded MD5s for data discs, byte for byte for
+      images), burns and saves ISO images, erases rewritable media and can
+      simulate any job with the laser off.</p>
+    <p>The Flatpak carries its own xorriso, which runs inside the sandbox.</p>
+  </description>
+  <launchable type="desktop-id">com.dhivalabs.discwriter.desktop</launchable>
+  <url type="homepage">https://github.com/Dhiva-Labs/DiscWriter</url>
+  <url type="bugtracker">https://github.com/Dhiva-Labs/DiscWriter/issues</url>
+  <developer id="com.dhivalabs">
+    <name>Dhiva Labs</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.1" date="2026-10-16"/>
+    <release version="0.1.0" date="2026-10-10"/>
+  </releases>
+</component>

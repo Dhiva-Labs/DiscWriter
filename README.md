@@ -2,6 +2,7 @@
 
 [![ARM64 builds](https://github.com/Dhiva-Labs/DiscWriter/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Dhiva-Labs/DiscWriter/actions/workflows/ci.yml)
 ![Linux x64 | arm64](https://img.shields.io/badge/Linux-x64%20%7C%20arm64-informational?logo=linux&logoColor=white)
+![Linux: deb | rpm | Arch | AppImage | Flatpak | Snap](https://img.shields.io/badge/Linux-deb%20%7C%20rpm%20%7C%20Arch%20%7C%20AppImage%20%7C%20Flatpak%20%7C%20Snap-informational?logo=linux&logoColor=white)
 
 A clean, modern disc-burning app for Linux desktop. Disc Writer burns data
 CDs, DVDs and Blu-ray discs, writes ISO images, saves projects as ISO files
@@ -93,6 +94,63 @@ run `./cd_writer` from the `discwriter-<version>/` directory. It needs
 
 `SHA256SUMS` on the release lists the checksum of every file.
 
+### Other distributions
+
+CI builds these from the same release build as the `.deb`, for x64
+(`x86_64`) and arm64 (`aarch64`), and attaches them to releases from the next
+release on. They are built on Ubuntu 24.04, so they need a distribution at
+least that new (glibc 2.39): Fedora 40 or later, RHEL/Rocky/Alma 10, openSUSE
+Tumbleweed, current Arch Linux. openSUSE Leap 15 and RHEL 9 are too old. The
+`.rpm` declares the glibc version it needs, so dnf and zypper refuse a system
+that is too old instead of installing an app that cannot start. The cdrom
+group requirement below applies to all of them.
+
+**Fedora, RHEL, Rocky, Alma** (`.rpm`; dnf installs xorriso and GTK 3 with
+it):
+
+```bash
+sudo dnf install ./discwriter-<version>-1.x86_64.rpm     # or .aarch64.rpm
+```
+
+**openSUSE Tumbleweed** (the same `.rpm`; it is not signed):
+
+```bash
+sudo zypper install --allow-unsigned-rpm ./discwriter-<version>-1.x86_64.rpm
+```
+
+**Arch Linux, Manjaro, EndeavourOS** (`.pkg.tar.zst`; depends on `gtk3` and
+`libisoburn`, which provides xorriso):
+
+```bash
+sudo pacman -U ./discwriter-<version>-1-x86_64.pkg.tar.zst  # or -aarch64
+```
+
+Each release also carries `discwriter-bin-<version>-aur.tar.gz`, the PKGBUILD
+and `.SRCINFO` of an AUR `discwriter-bin` package that repackages the release
+`.deb`. It is not on the AUR yet.
+
+**AppImage** (any glibc distribution with GTK 3; it runs your system's
+`xorriso`, so install that first):
+
+```bash
+chmod +x DiscWriter-<version>-x86_64.AppImage                # or -aarch64
+./DiscWriter-<version>-x86_64.AppImage
+```
+
+**Flatpak** (bundles xorriso; the GNOME 51 runtime comes from Flathub):
+
+```bash
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --user ./discwriter-<version>-x86_64.flatpak # or -aarch64
+flatpak run com.dhivalabs.discwriter
+```
+
+The Flatpak has access to all devices (Flatpak has no narrower permission
+for optical drives), your home directory and mounted media under `/media`,
+`/run/media` and `/mnt`. Opening the drive still needs the cdrom group (or
+your desktop session's device access), as with the `.deb`. See
+[packaging/flatpak/README.md](packaging/flatpak/README.md).
+
 ## Requirements
 
 - Linux with an optical drive (internal or USB)
@@ -102,7 +160,7 @@ run `./cd_writer` from the `discwriter-<version>/` directory. It needs
   open a drive the kernel can see, the Disc info page tells you so.
 
 Disc Writer looks for xorriso in `$CD_WRITER_XORRISO`, then in the snap's
-bundled copy, then on `PATH`.
+bundled copy, then on `PATH` (where the Flatpak's bundled copy is).
 
 ## Building
 

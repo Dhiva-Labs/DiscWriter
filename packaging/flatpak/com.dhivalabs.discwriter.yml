@@ -1,0 +1,65 @@
+# Flatpak manifest for Disc Writer.
+#
+# Like the .rpm, Arch package and AppImage, this repackages the installed
+# tree of the .deb that CI builds (unpacked into packaging/flatpak/tree/ by
+# the workflow), so the Flatpak ships the same binary as every other format
+# instead of a second build inside the sandbox. A Flathub submission needs
+# `tree` swapped for an archive source (release URL + sha256); see README.md
+# in this directory.
+#
+# Disc Writer does all of its burning by running xorriso. The runtime has
+# none, so GNU xorriso (xorriso with libburn, libisofs and libisoburn built
+# in) is built here from the upstream release and runs inside the sandbox;
+# the app finds it on PATH (/app/bin/xorriso).
+id: com.dhivalabs.discwriter
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+command: discwriter
+finish-args:
+  # GTK needs a display socket; fallback-x11 covers X11-only desktops.
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  # GPU acceleration for Flutter's renderer.
+  - --device=dri
+  # The optical drives (/dev/sr*, /dev/sg*). Flatpak has no narrower device
+  # permission for them; opening one still needs the host's permission
+  # (the cdrom group or the desktop session's device access), as with the
+  # .deb.
+  - --device=all
+  # Files and folders to burn, ISO images to burn, and where ISO images are
+  # saved. They come from the file chooser and from drag and drop out of the
+  # file manager, which passes plain paths.
+  - --filesystem=home
+  # The same from USB drives and other mounted media, as the snap's
+  # removable-media plug allows.
+  - --filesystem=/media
+  - --filesystem=/run/media
+  - --filesystem=/mnt
+modules:
+  - name: xorriso
+    sources:
+      - type: archive
+        url: https://ftp.gnu.org/gnu/xorriso/xorriso-1.5.8.pl02.tar.gz
+        sha256: b1455ecafbf0692ddafe1d71002a96f2ce2d77f4deae602678261ce033f97bc8
+    cleanup:
+      - /share/info
+      - /share/man
+
+  - name: discwriter
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: tree
+        dest: tree
+      - type: file
+        path: com.dhivalabs.discwriter.metainfo.xml
+    build-commands:
+      # Flutter finds lib/ and data/ next to its executable.
+      - install -d /app/lib && cp -a tree/usr/lib/discwriter /app/lib/discwriter
+      - install -d /app/bin && ln -s ../lib/discwriter/cd_writer /app/bin/discwriter
+      - install -Dm644 tree/usr/share/applications/com.dhivalabs.discwriter.desktop /app/share/applications/com.dhivalabs.discwriter.desktop
+      - desktop-file-edit --set-icon=com.dhivalabs.discwriter /app/share/applications/com.dhivalabs.discwriter.desktop
+      - for s in 16 32 48 64 128 256 512; do install -Dm644 tree/usr/share/icons/hicolor/${s}x${s}/apps/discwriter.png /app/share/icons/hicolor/${s}x${s}/apps/com.dhivalabs.discwriter.png; done
+      - install -Dm644 com.dhivalabs.discwriter.metainfo.xml /app/share/metainfo/com.dhivalabs.discwriter.metainfo.xml
