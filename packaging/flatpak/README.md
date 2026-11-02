@@ -22,7 +22,8 @@ The manifest has two modules:
 - **discwriter**: the installed tree, with the desktop file and icons renamed
   to the app ID, and the AppStream metadata.
 
-CI then installs the bundle and checks, inside the sandbox, that every ELF
+The `flatpak-run` job then installs the bundle on a plain Ubuntu runner, the
+way a user would (runtime from Flathub), and checks, inside the sandbox, that every ELF
 file under `/app` finds its libraries (`ldd-check.sh`), that `xorriso` on
 `PATH` is the bundled one, and that it burns and verifies an MD5-checked data
 session on a file-backed drive (`stdio:`). Last, it starts the app under
