@@ -10,6 +10,8 @@ and erases rewritable media. All the burning is done by
 [xorriso](https://www.gnu.org/software/xorriso/), the libburnia tool. Disc
 Writer drives the `xorriso` command line and doesn't link any burning library.
 
+**Documentation:** step-by-step guides at [learn.dhivalabs.com](https://learn.dhivalabs.com/apps/discwriter/): [install](https://learn.dhivalabs.com/apps/discwriter/install) · [beginner guide](https://learn.dhivalabs.com/apps/discwriter/getting-started) · [troubleshooting](https://learn.dhivalabs.com/apps/discwriter/faq). New to the topic? Try the [Files, backups and recovery](https://learn.dhivalabs.com/tracks/files/) learning track.
+
 Built with Flutter (Linux desktop) and Riverpod.
 
 ![Data disc](screenshots/01-data-disc.png)
