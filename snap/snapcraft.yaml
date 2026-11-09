@@ -39,7 +39,9 @@ grade: stable
 confinement: strict
 icon: snap/gui/discwriter.png
 license: MIT
-website: https://github.com/Dhiva-Labs/DiscWriter
+website:
+  - https://github.com/Dhiva-Labs/DiscWriter
+  - https://learn.dhivalabs.com/apps/discwriter/
 source-code: https://github.com/Dhiva-Labs/DiscWriter
 issues: https://github.com/Dhiva-Labs/DiscWriter/issues
 contact: dhivakar1010@gmail.com
